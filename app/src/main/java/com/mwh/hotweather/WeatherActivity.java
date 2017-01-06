@@ -116,6 +116,7 @@ public class WeatherActivity extends AppCompatActivity {
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
+                final String weatherId = mCache.getAsString("weather_id");
                 requestWeather(weatherId);
             }
         });
@@ -184,11 +185,16 @@ public class WeatherActivity extends AppCompatActivity {
                 TextView infoText = (TextView) view.findViewById(R.id.info_text);
                 TextView maxText = (TextView) view.findViewById(R.id.max_text);
                 TextView minText = (TextView) view.findViewById(R.id.min_text);
+                ImageView icon_img= (ImageView) view.findViewById(R.id.icon_img);
                 dataText.setText(forecast.date.substring(5));
                 infoText.setText(forecast.more.info);
                 maxText.setText(forecast.temperature.max);
                 minText.setText(forecast.temperature.min);
                 forecastLayout.addView(view);
+                String icon_code=forecast.more.icon;
+                if (!TextUtils.isEmpty(icon_code)){
+                    Glide.with(mContext).load("http://files.heweather.com/cond_icon/"+icon_code+".png").into(icon_img);
+                }
             }
             if (weather.aqi != null) {
                 qltyText.setText(weather.aqi.city.qlty);
