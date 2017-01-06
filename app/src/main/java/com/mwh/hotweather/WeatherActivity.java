@@ -4,9 +4,13 @@ import android.content.Context;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.support.v4.view.GravityCompat;
+import android.support.v4.widget.DrawerLayout;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -62,6 +66,12 @@ public class WeatherActivity extends AppCompatActivity {
     TextView qltyText;
     @BindView(R.id.bg_img)
     ImageView bgImg;
+    @BindView(R.id.swipe_refresh)
+    SwipeRefreshLayout swipeRefresh;
+    @BindView(R.id.nav_button)
+    Button navButton;
+    @BindView(R.id.drawer_layout)
+    DrawerLayout drawerLayout;
 
     private Context mContext;
     private ACache mCache;
@@ -70,28 +80,44 @@ public class WeatherActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         //透明状态栏
-        if (Build.VERSION.SDK_INT>=21){
+        if (Build.VERSION.SDK_INT >= 21) {
             //5.0的系统才执行
-            View decorView=getWindow().getDecorView();
-            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);//活动不仅显示在状态栏上面
+            View decorView = getWindow().getDecorView();
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);//活动不仅显示在状态栏上面
             getWindow().setStatusBarColor(Color.TRANSPARENT);//设置成透明
         }
         setContentView(R.layout.activity_weather);
         ButterKnife.bind(this);
-        mContext=this;
-        mCache=ACache.get(mContext);
+        mContext = this;
+        mCache = ACache.get(mContext);
+        swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
 
         //无缓存就从网络获取
-        String weatherId = mCache.getAsString("weather_id");
+        final String weatherId = mCache.getAsString("weather_id");
         weatherLayout.setVisibility(View.INVISIBLE);
         requestWeather(weatherId);
 
         //获得背景图片
         loadBgPic();
+        swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                requestWeather(weatherId);
+            }
+        });
+
+        //打開側滑菜單
+        navButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                drawerLayout.openDrawer(GravityCompat.START);
+            }
+        });
     }
 
     /**
      * 从服务器请求天气数据
+     *
      * @param weatherId
      */
     public void requestWeather(final String weatherId) {
@@ -111,7 +137,7 @@ public class WeatherActivity extends AppCompatActivity {
                         } else {
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                         }
-
+                        swipeRefresh.setRefreshing(false);
                     }
 
                     @Override
@@ -124,6 +150,7 @@ public class WeatherActivity extends AppCompatActivity {
                     public void onError(Call call, Response response, Exception e) {
                         super.onError(call, response, e);
                         Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+                        swipeRefresh.setRefreshing(false);
                     }
                 });
         loadBgPic();
@@ -176,8 +203,8 @@ public class WeatherActivity extends AppCompatActivity {
     /**
      * 从服务器获得背景图片
      */
-    private void loadBgPic(){
-        String prcUrl="http://guolin.tech/api/bing_pic";
+    private void loadBgPic() {
+        String prcUrl = "http://guolin.tech/api/bing_pic";
         OkGo.get(prcUrl)
                 .cacheKey("bg_img_url")
                 .cacheMode(FIRST_CACHE_THEN_REQUEST)
@@ -192,7 +219,7 @@ public class WeatherActivity extends AppCompatActivity {
 
                     @Override
                     public void onCacheSuccess(String s, Call call) {
-                        onSuccess(s,call,null);
+                        onSuccess(s, call, null);
                     }
                 });
     }
