@@ -1,6 +1,7 @@
 package com.mwh.hotweather;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -8,6 +9,7 @@ import android.support.v4.view.GravityCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
@@ -23,6 +25,7 @@ import com.lzy.okgo.OkGo;
 import com.lzy.okgo.callback.StringCallback;
 import com.mwh.hotweather.gson.Forecast;
 import com.mwh.hotweather.gson.Weather;
+import com.mwh.hotweather.service.AutoUpdateService;
 import com.mwh.hotweather.util.ACache;
 import com.mwh.hotweather.util.Utility;
 
@@ -30,8 +33,6 @@ import butterknife.BindView;
 import butterknife.ButterKnife;
 import okhttp3.Call;
 import okhttp3.Response;
-
-import static com.lzy.okgo.cache.CacheMode.FIRST_CACHE_THEN_REQUEST;
 
 /**
  * 显示天信息
@@ -92,13 +93,26 @@ public class WeatherActivity extends AppCompatActivity {
         mCache = ACache.get(mContext);
         swipeRefresh.setColorSchemeResources(R.color.colorPrimary);
 
-        //无缓存就从网络获取
         final String weatherId = mCache.getAsString("weather_id");
-        weatherLayout.setVisibility(View.INVISIBLE);
-        requestWeather(weatherId);
+        String weather = mCache.getAsString("weather");
+        if (!TextUtils.isEmpty(weather)) {
+            Weather weathers = Utility.handleWeatherResponse(weather);
+            showWeatherInfo(weathers);
+        } else {
+            //无缓存就从网络获取
+            weatherLayout.setVisibility(View.INVISIBLE);
+            requestWeather(weatherId);
+        }
 
-        //获得背景图片
-        loadBgPic();
+        String pic_url = mCache.getAsString("pic_url");
+        if (!TextUtils.isEmpty(pic_url)) {
+            //读取本地地址
+            Glide.with(this).load(pic_url).into(bgImg);
+        } else {
+            //获得网络图片地址
+            loadBgPic();
+        }
+
         swipeRefresh.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
@@ -106,7 +120,7 @@ public class WeatherActivity extends AppCompatActivity {
             }
         });
 
-        //打開側滑菜單
+        //打开侧滑菜单
         navButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -123,14 +137,11 @@ public class WeatherActivity extends AppCompatActivity {
     public void requestWeather(final String weatherId) {
         String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=bc0418b57b2d4918819d3974ac1285d9";
         OkGo.get(weatherUrl)
-                .cacheMode(FIRST_CACHE_THEN_REQUEST)
-                .cacheKey("weather")
-                .cacheTime(86400000)//一天
                 .tag(this)
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(String s, Call call, Response response) {
-
+                        mCache.put("weather", s);
                         Weather weather = Utility.handleWeatherResponse(s);
                         if (weather != null && "ok".equals(weather.status)) {
                             showWeatherInfo(weather);
@@ -138,12 +149,6 @@ public class WeatherActivity extends AppCompatActivity {
                             Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                         }
                         swipeRefresh.setRefreshing(false);
-                    }
-
-                    @Override
-                    public void onCacheSuccess(String s, Call call) {
-                        //有缓存就从缓存中读取
-                        onSuccess(s, call, null);
                     }
 
                     @Override
@@ -162,41 +167,49 @@ public class WeatherActivity extends AppCompatActivity {
      * @param weather
      */
     private void showWeatherInfo(Weather weather) {
-        String cityName = weather.basic.cityName;
-        String updateTime = weather.basic.update.updateTime.split(" ")[1];
-        String degree = weather.now.temperature + "℃";
-        String weatherInfo = weather.now.more.info;
-        titleCity.setText(cityName);
-        titleUpdateTime.setText(updateTime);
-        degreeText.setText(degree);
-        weatherInfoText.setText(weatherInfo);
-        forecastLayout.removeAllViews();
-        for (Forecast forecast :
-                weather.forecastList) {
-            View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
-            TextView dataText = (TextView) view.findViewById(R.id.date_text);
-            TextView infoText = (TextView) view.findViewById(R.id.info_text);
-            TextView maxText = (TextView) view.findViewById(R.id.max_text);
-            TextView minText = (TextView) view.findViewById(R.id.min_text);
-            dataText.setText(forecast.date);
-            infoText.setText(forecast.more.info);
-            maxText.setText(forecast.temperature.max);
-            minText.setText(forecast.temperature.min);
-            forecastLayout.addView(view);
-        }
-        if (weather.aqi != null) {
-            qltyText.setText(weather.aqi.city.qlty);
-            aqiText.setText(weather.aqi.city.aqi);
-            pm25Text.setText(weather.aqi.city.pm25);
-        }
-        String comfort = "舒适度: " + weather.suggestion.comfort.info;
-        String carWash = "洗车指数: " + weather.suggestion.carWash.info;
-        String sport = "运动建议: " + weather.suggestion.sport.info;
+        if (weather != null && "ok".equals(weather.status)) {
+            String cityName = weather.basic.cityName;
+            String updateTime = weather.basic.update.updateTime.split(" ")[1];
+            String degree = weather.now.temperature + "℃";
+            String weatherInfo = weather.now.more.info;
+            titleCity.setText(cityName);
+            titleUpdateTime.setText(updateTime);
+            degreeText.setText(degree);
+            weatherInfoText.setText(weatherInfo);
+            forecastLayout.removeAllViews();
+            for (Forecast forecast :
+                    weather.forecastList) {
+                View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
+                TextView dataText = (TextView) view.findViewById(R.id.date_text);
+                TextView infoText = (TextView) view.findViewById(R.id.info_text);
+                TextView maxText = (TextView) view.findViewById(R.id.max_text);
+                TextView minText = (TextView) view.findViewById(R.id.min_text);
+                dataText.setText(forecast.date.substring(5));
+                infoText.setText(forecast.more.info);
+                maxText.setText(forecast.temperature.max);
+                minText.setText(forecast.temperature.min);
+                forecastLayout.addView(view);
+            }
+            if (weather.aqi != null) {
+                qltyText.setText(weather.aqi.city.qlty);
+                aqiText.setText(weather.aqi.city.aqi);
+                pm25Text.setText(weather.aqi.city.pm25);
+            }
+            String comfort = "舒适度: " + weather.suggestion.comfort.info;
+            String carWash = "洗车指数: " + weather.suggestion.carWash.info;
+            String sport = "运动建议: " + weather.suggestion.sport.info;
 
-        comfortText.setText(comfort);
-        carWashText.setText(carWash);
-        sportText.setText(sport);
-        weatherLayout.setVisibility(View.VISIBLE);
+            comfortText.setText(comfort);
+            carWashText.setText(carWash);
+            sportText.setText(sport);
+            weatherLayout.setVisibility(View.VISIBLE);
+
+            Intent intent = new Intent(this, AutoUpdateService.class);
+            startService(intent);
+        } else {
+            Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
+        }
+
 
     }
 
@@ -206,21 +219,18 @@ public class WeatherActivity extends AppCompatActivity {
     private void loadBgPic() {
         String prcUrl = "http://guolin.tech/api/bing_pic";
         OkGo.get(prcUrl)
-                .cacheKey("bg_img_url")
-                .cacheMode(FIRST_CACHE_THEN_REQUEST)
-                .cacheTime(86400000)//一天
+//                .cacheKey("bg_img_url")
+//                .cacheMode(FIRST_CACHE_THEN_REQUEST)
+//                .cacheTime(86400000)//一天
                 .tag(this)
                 .execute(new StringCallback() {
                     @Override
                     public void onSuccess(String s, Call call, Response response) {
+                        mCache.put("pic_url", s);
                         //加载图片
                         Glide.with(mContext).load(s).into(bgImg);
                     }
 
-                    @Override
-                    public void onCacheSuccess(String s, Call call) {
-                        onSuccess(s, call, null);
-                    }
                 });
     }
 }

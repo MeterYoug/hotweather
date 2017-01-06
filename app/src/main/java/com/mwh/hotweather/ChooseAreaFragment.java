@@ -76,7 +76,7 @@ public class ChooseAreaFragment extends Fragment {
 
         adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1, dataList);
         listView.setAdapter(adapter);
-        mCache=ACache.get(getContext());
+        mCache = ACache.get(getContext());
         return view;
     }
 
@@ -89,23 +89,22 @@ public class ChooseAreaFragment extends Fragment {
                 if (currentLevel == LEVEL_PROVINCE) {
                     selectedProvince = provinceList.get(position);
                     queryCities();
-                }else if (currentLevel==LEVEL_CITY){
-                    selectedCity=cityList.get(position);
+                } else if (currentLevel == LEVEL_CITY) {
+                    selectedCity = cityList.get(position);
                     queryCounties();
-                }else if (currentLevel==LEVEL_COUNTY){
-                    String weatherId=countList.get(position).getWeatherId();
-                    if (getActivity() instanceof MainActivity){
-                        mCache.put("weather_id",weatherId,ACache.TIME_DAY);
-                        Intent intent=new Intent(getActivity(),WeatherActivity.class);
+                } else if (currentLevel == LEVEL_COUNTY) {
+                    String weatherId = countList.get(position).getWeatherId();
+                    mCache.put("weather_id", weatherId);
+                    if (getActivity() instanceof MainActivity) {
+                        Intent intent = new Intent(getActivity(), WeatherActivity.class);
                         startActivity(intent);
                         getActivity().finish();
-                    }else if (getActivity() instanceof WeatherActivity){
-                        WeatherActivity activity= (WeatherActivity) getActivity();
+                    } else if (getActivity() instanceof WeatherActivity) {
+                        WeatherActivity activity = (WeatherActivity) getActivity();
                         activity.drawerLayout.closeDrawers();
                         activity.swipeRefresh.setRefreshing(true);
                         activity.requestWeather(weatherId);
                     }
-
                 }
             }
         });
@@ -113,9 +112,9 @@ public class ChooseAreaFragment extends Fragment {
         backButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                if (currentLevel==LEVEL_COUNTY){
+                if (currentLevel == LEVEL_COUNTY) {
                     queryCities();
-                }else if (currentLevel==LEVEL_CITY){
+                } else if (currentLevel == LEVEL_CITY) {
                     queryProvinces();
                 }
             }
