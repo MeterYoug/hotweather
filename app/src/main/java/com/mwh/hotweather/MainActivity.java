@@ -22,7 +22,6 @@ public class MainActivity extends AppCompatActivity {
         String weather_id=mCache.getAsString("weather_id");
         if (weather_id!=null){
             Intent intent=new Intent(this,WeatherActivity.class);
-            intent.putExtra("weather_id",weather_id);
             startActivity(intent);
             finish();
         }

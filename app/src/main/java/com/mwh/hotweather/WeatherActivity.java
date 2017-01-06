@@ -1,19 +1,25 @@
 package com.mwh.hotweather;
 
+import android.content.Context;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.lzy.okgo.OkGo;
 import com.lzy.okgo.callback.StringCallback;
 import com.mwh.hotweather.gson.Forecast;
 import com.mwh.hotweather.gson.Weather;
+import com.mwh.hotweather.util.ACache;
 import com.mwh.hotweather.util.Utility;
 
 import butterknife.BindView;
@@ -54,25 +60,46 @@ public class WeatherActivity extends AppCompatActivity {
     FrameLayout activityWeather;
     @BindView(R.id.qlty_text)
     TextView qltyText;
+    @BindView(R.id.bg_img)
+    ImageView bgImg;
+
+    private Context mContext;
+    private ACache mCache;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //透明状态栏
+        if (Build.VERSION.SDK_INT>=21){
+            //5.0的系统才执行
+            View decorView=getWindow().getDecorView();
+            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_STABLE);//活动不仅显示在状态栏上面
+            getWindow().setStatusBarColor(Color.TRANSPARENT);//设置成透明
+        }
         setContentView(R.layout.activity_weather);
         ButterKnife.bind(this);
-
+        mContext=this;
+        mCache=ACache.get(mContext);
 
         //无缓存就从网络获取
-        String weatherId = getIntent().getStringExtra("weather_id");
+        String weatherId = mCache.getAsString("weather_id");
         weatherLayout.setVisibility(View.INVISIBLE);
         requestWeather(weatherId);
+
+        //获得背景图片
+        loadBgPic();
     }
 
+    /**
+     * 从服务器请求天气数据
+     * @param weatherId
+     */
     public void requestWeather(final String weatherId) {
         String weatherUrl = "http://guolin.tech/api/weather?cityid=" + weatherId + "&key=bc0418b57b2d4918819d3974ac1285d9";
         OkGo.get(weatherUrl)
                 .cacheMode(FIRST_CACHE_THEN_REQUEST)
                 .cacheKey("weather")
+                .cacheTime(86400000)//一天
                 .tag(this)
                 .execute(new StringCallback() {
                     @Override
@@ -99,6 +126,7 @@ public class WeatherActivity extends AppCompatActivity {
                         Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                     }
                 });
+        loadBgPic();
     }
 
     /**
@@ -143,5 +171,29 @@ public class WeatherActivity extends AppCompatActivity {
         sportText.setText(sport);
         weatherLayout.setVisibility(View.VISIBLE);
 
+    }
+
+    /**
+     * 从服务器获得背景图片
+     */
+    private void loadBgPic(){
+        String prcUrl="http://guolin.tech/api/bing_pic";
+        OkGo.get(prcUrl)
+                .cacheKey("bg_img_url")
+                .cacheMode(FIRST_CACHE_THEN_REQUEST)
+                .cacheTime(86400000)//一天
+                .tag(this)
+                .execute(new StringCallback() {
+                    @Override
+                    public void onSuccess(String s, Call call, Response response) {
+                        //加载图片
+                        Glide.with(mContext).load(s).into(bgImg);
+                    }
+
+                    @Override
+                    public void onCacheSuccess(String s, Call call) {
+                        onSuccess(s,call,null);
+                    }
+                });
     }
 }
