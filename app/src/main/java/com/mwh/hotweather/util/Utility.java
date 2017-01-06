@@ -2,9 +2,11 @@ package com.mwh.hotweather.util;
 
 import android.text.TextUtils;
 
+import com.google.gson.Gson;
 import com.mwh.hotweather.db.City;
 import com.mwh.hotweather.db.County;
 import com.mwh.hotweather.db.Province;
+import com.mwh.hotweather.gson.Weather;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -87,5 +89,17 @@ public class Utility {
             }
         }
         return false;
+    }
+
+    public static Weather handleWeatherResponse(String response){
+        try{
+            JSONObject jsonObject=new JSONObject(response);
+            JSONArray jsonArray=jsonObject.getJSONArray("HeWeather");
+            String weatherContent=jsonArray.getJSONObject(0).toString();
+            return new Gson().fromJson(weatherContent,Weather.class);
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return null;
     }
 }

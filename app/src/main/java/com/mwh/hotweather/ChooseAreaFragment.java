@@ -1,6 +1,7 @@
 package com.mwh.hotweather;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -19,6 +20,7 @@ import com.lzy.okgo.callback.StringCallback;
 import com.mwh.hotweather.db.City;
 import com.mwh.hotweather.db.County;
 import com.mwh.hotweather.db.Province;
+import com.mwh.hotweather.util.ACache;
 import com.mwh.hotweather.util.Utility;
 
 import org.litepal.crud.DataSupport;
@@ -64,6 +66,8 @@ public class ChooseAreaFragment extends Fragment {
 
     String address_url = "http://guolin.tech/api/china/";
 
+    private ACache mCache;
+
     @Nullable
     @Override
     public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -72,7 +76,7 @@ public class ChooseAreaFragment extends Fragment {
 
         adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1, dataList);
         listView.setAdapter(adapter);
-
+        mCache=ACache.get(getContext());
         return view;
     }
 
@@ -88,6 +92,13 @@ public class ChooseAreaFragment extends Fragment {
                 }else if (currentLevel==LEVEL_CITY){
                     selectedCity=cityList.get(position);
                     queryCounties();
+                }else if (currentLevel==LEVEL_COUNTY){
+                    String weatherId=countList.get(position).getWeatherId();
+                    mCache.put("weather_id",weatherId);
+                    Intent intent=new Intent(getActivity(),WeatherActivity.class);
+                    intent.putExtra("weather_id",weatherId);
+                    startActivity(intent);
+                    getActivity().finish();
                 }
             }
         });
